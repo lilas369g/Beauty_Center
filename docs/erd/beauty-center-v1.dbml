@@ -1,0 +1,139 @@
+Project beauty_center_v1 {
+  database_type: 'PostgreSQL'
+  Note: 'Single-tenant operational data only. All actual date-times are UTC timestamptz values.'
+}
+
+Table service_categories {
+  id bigint [pk, increment]
+  uuid uuid [not null, unique, default: `gen_random_uuid()`]
+  name varchar(100) [not null, unique]
+  is_active boolean [not null, default: true]
+  created_at timestamptz [not null]
+  updated_at timestamptz [not null]
+}
+
+Table services {
+  id bigint [pk, increment]
+  uuid uuid [not null, unique, default: `gen_random_uuid()`]
+  service_category_id bigint [not null]
+  name varchar(150) [not null]
+  description text
+  price numeric(12,2) [not null, note: 'CHECK price >= 0']
+  duration_minutes smallint [not null, note: 'CHECK duration_minutes > 0']
+  is_active boolean [not null, default: true]
+  created_at timestamptz [not null]
+  updated_at timestamptz [not null]
+
+  Indexes { (service_category_id, name) [name: 'services_active_category_name_idx', note: 'WHERE is_active = true'] }
+}
+
+Table employees {
+  id bigint [pk, increment]
+  uuid uuid [not null, unique, default: `gen_random_uuid()`]
+  full_name varchar(150) [not null]
+  email varchar(255) [unique]
+  phone varchar(30) [unique]
+  commission_rate numeric(5,2) [not null, default: 0, note: 'CHECK commission_rate BETWEEN 0 AND 100']
+  is_active boolean [not null, default: true]
+  created_at timestamptz [not null]
+  updated_at timestamptz [not null]
+  deleted_at timestamptz
+}
+
+Table employee_services {
+  employee_id bigint [not null]
+  service_id bigint [not null]
+  created_at timestamptz [not null]
+  updated_at timestamptz [not null]
+
+  Indexes {
+    (employee_id, service_id) [pk]
+    (service_id, employee_id) [name: 'employee_services_service_employee_idx']
+  }
+}
+
+Table employee_working_hours {
+  id bigint [pk, increment]
+  uuid uuid [not null, unique, default: `gen_random_uuid()`]
+  employee_id bigint [not null]
+  weekday smallint [not null, note: 'CHECK weekday BETWEEN 0 AND 6']
+  start_time time [not null]
+  end_time time [not null, note: 'CHECK start_time < end_time']
+  created_at timestamptz [not null]
+  updated_at timestamptz [not null]
+
+  Indexes {
+    (employee_id, weekday, start_time, end_time) [unique, name: 'employee_working_hours_exact_unique']
+    (employee_id, weekday, start_time) [name: 'employee_working_hours_employee_weekday_start_idx']
+  }
+}
+
+Table employee_unavailability {
+  id bigint [pk, increment]
+  uuid uuid [not null, unique, default: `gen_random_uuid()`]
+  employee_id bigint [not null]
+  start_at timestamptz [not null]
+  end_at timestamptz [not null, note: 'CHECK start_at < end_at']
+  reason varchar(30) [not null, note: 'CHECK break | leave | manual_block']
+  notes text
+  created_at timestamptz [not null]
+  updated_at timestamptz [not null]
+
+  Indexes { (employee_id, start_at) [name: 'employee_unavailability_employee_start_idx'] }
+}
+
+Table customers {
+  id bigint [pk, increment]
+  uuid uuid [not null, unique, default: `gen_random_uuid()`]
+  full_name varchar(150) [not null]
+  phone varchar(30) [not null, unique]
+  email varchar(255) [unique]
+  address text
+  loyalty_points int [not null, default: 0, note: 'CHECK loyalty_points >= 0']
+  registered_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
+  created_at timestamptz [not null]
+  updated_at timestamptz [not null]
+  deleted_at timestamptz
+}
+
+Table appointments {
+  id bigint [pk, increment]
+  uuid uuid [not null, unique, default: `gen_random_uuid()`]
+  customer_id bigint [not null]
+  employee_id bigint [not null]
+  start_at timestamptz [not null]
+  end_at timestamptz [not null, note: 'CHECK start_at < end_at']
+  status varchar(20) [not null, note: 'CHECK pending | confirmed | completed | cancelled | no_show']
+  notes text
+  created_at timestamptz [not null]
+  updated_at timestamptz [not null]
+
+  Indexes {
+    (employee_id, start_at) [name: 'appointments_employee_active_start_idx', note: "WHERE status IN ('pending', 'confirmed')"]
+    (start_at) [name: 'appointments_active_start_idx', note: "WHERE status IN ('pending', 'confirmed')"]
+    (customer_id, start_at) [name: 'appointments_customer_start_idx']
+  }
+  Note: 'Exclusion: employee_id WITH = and tstzrange(start_at, end_at, [)) WITH &&, for pending/confirmed only.'
+}
+
+Table appointment_services {
+  appointment_id bigint [not null]
+  service_id bigint [not null]
+  booked_price numeric(12,2) [not null, note: 'CHECK booked_price >= 0']
+  booked_duration_minutes smallint [not null, note: 'CHECK booked_duration_minutes > 0']
+  position smallint [not null, default: 1, note: 'CHECK position > 0']
+  created_at timestamptz [not null]
+  updated_at timestamptz [not null]
+
+  Indexes { (appointment_id, service_id) [pk] }
+}
+
+Ref: services.service_category_id > service_categories.id [delete: restrict]
+Ref: employee_services.employee_id > employees.id [delete: cascade]
+Ref: employee_services.service_id > services.id [delete: cascade]
+Ref: employee_working_hours.employee_id > employees.id [delete: cascade]
+Ref: employee_unavailability.employee_id > employees.id [delete: cascade]
+Ref: appointments.customer_id > customers.id [delete: restrict]
+Ref: appointments.employee_id > employees.id [delete: restrict]
+Ref: appointment_services.appointment_id > appointments.id [delete: cascade]
+Ref: appointment_services.service_id > services.id [delete: restrict]
