@@ -9,7 +9,15 @@ Authorization: Bearer <token>
 Accept: application/json
 ```
 
-Tokens expire after the minutes set in `config/sanctum.php` (`expiration`, from `SANCTUM_EXPIRATION`, default `10080` = 7 days). An expired or revoked token is treated as missing.
+A token is rejected with `401`, the same as a missing token, when any of these is true:
+
+- It is older than the expiration set in `config/sanctum.php` (`expiration`, read from `SANCTUM_EXPIRATION`, default `10080` minutes = 7 days).
+- It was revoked by logout.
+- Its owner's account is deactivated (`is_active = false`). This takes effect on the very next request, even if the token has not expired. Reactivating the account makes its unexpired tokens work again.
+
+## Time values
+
+All timestamps (for example `last_login_at`) are stored as `timestamptz` and returned in UTC, ISO 8601 (`...Z`). The app and the database session both run in UTC. Local business time (`Asia/Damascus`) is applied only when computing working hours and when displaying times.
 
 ## Unauthenticated response
 
@@ -85,4 +93,4 @@ No body. Deletes only the token used for this request. Other devices stay signed
 
 Permission: authenticated user.
 
-Returns `200` with `{ "data": { ...user } }`, using the same user shape as the login response. Without a valid token: `401`.
+Returns `200` with `{ "data": { ...user } }`, using the same user shape as the login response. Without a valid token, or if the account was deactivated: `401`.
