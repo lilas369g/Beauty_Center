@@ -13,7 +13,7 @@ return new class extends Migration
             $table->bigIncrements('id');
             $table->unsignedBigInteger('laser_service_setting_id');
             $table->unsignedBigInteger('laser_area_id');
-            $table->decimal('default_price', 12, 2)->nullable();
+            $table->decimal('default_price', 12, 2)->max(999999999.99)->nullable();
             $table->smallInteger('default_duration_minutes')->nullable();
             $table->boolean('is_active')->default(true);
             $table->timestampsTz();

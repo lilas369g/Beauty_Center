@@ -12,7 +12,7 @@ return new class extends Migration
         Schema::create('appointment_services', function (Blueprint $table) {
             $table->unsignedBigInteger('appointment_id');
             $table->unsignedBigInteger('service_id');
-            $table->decimal('booked_price', 12, 2);
+            $table->decimal('booked_price', 12, 2)->max(999999999.99);
             $table->smallInteger('booked_duration_minutes');
             $table->smallInteger('position')->default(1);
             $table->timestampsTz();
